@@ -262,7 +262,7 @@ chmod +x "$INSTALL_DIR/start.sh"
 
 cat > "$INSTALL_DIR/stop.sh" << 'EOF'
 #!/bin/bash
-pkill -f "lmlight.*api" 2>/dev/null
+pkill -f "$HOME/.local/lmlight/api" 2>/dev/null
 pkill -f "node.*server.js" 2>/dev/null
 echo "Stopped"
 EOF
