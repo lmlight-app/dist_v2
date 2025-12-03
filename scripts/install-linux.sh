@@ -172,6 +172,14 @@ CREATE TABLE IF NOT EXISTS "Message" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Migrate existing Bot table (add new columns if missing)
+DO $$ BEGIN
+    ALTER TABLE "Bot" ADD COLUMN IF NOT EXISTS "shareType" "ShareType" NOT NULL DEFAULT 'PRIVATE';
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_column THEN null; END $$;
+DO $$ BEGIN
+    ALTER TABLE "Bot" ADD COLUMN IF NOT EXISTS "shareTagId" TEXT;
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_column THEN null; END $$;
+
 -- pgvector schema
 CREATE SCHEMA IF NOT EXISTS pgvector;
 CREATE TABLE IF NOT EXISTS pgvector.embeddings (
