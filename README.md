@@ -85,11 +85,3 @@ ollama pull nomic-embed-text    # RAG用埋め込みモデル (推奨)
 
 デフォルトログイン: `admin@local` / `admin123`
 
-## Nuitka版との違い
-
-| 項目 | PyInstaller (dist_v2) | Nuitka (dist) |
-|------|----------------------|---------------|
-| ビルド時間 | 〜10秒 | 〜5分 |
-| バイナリサイズ | 〜44MB | 〜44MB |
-| 難読化 | なし (bytecode) | あり (C変換) |
-| 互換性 | 高い | macOS版に問題あり |
