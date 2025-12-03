@@ -262,8 +262,12 @@ chmod +x "$INSTALL_DIR/start.sh"
 
 cat > "$INSTALL_DIR/stop.sh" << 'EOF'
 #!/bin/bash
-pkill -f "$HOME/.local/lmlight/api" 2>/dev/null
-pkill -f "node.*server.js" 2>/dev/null
+# Kill start.sh first (which will trigger its trap to kill API/Web)
+pkill -f "lmlight/start\.sh" 2>/dev/null
+sleep 1
+# Clean up any remaining processes
+pkill -f "\./api$" 2>/dev/null
+pkill -f "lmlight/web.*server\.js" 2>/dev/null
 echo "Stopped"
 EOF
 chmod +x "$INSTALL_DIR/stop.sh"
