@@ -1,70 +1,46 @@
-#!/bin/bash
-# LM Light Installer for Linux
-set -e
+# LM Light Database Setup for Windows
+# Usage: irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/db_setup.ps1 | iex
 
-BASE_URL="${LMLIGHT_BASE_URL:-https://github.com/lmlight-app/dist_v2/releases/latest/download}"
-INSTALL_DIR="${LMLIGHT_INSTALL_DIR:-$HOME/.local/lmlight}"
-ARCH="$(uname -m)"
-case "$ARCH" in x86_64|amd64) ARCH="amd64" ;; aarch64|arm64) ARCH="arm64" ;; esac
+$ErrorActionPreference = "Stop"
 
-echo "Installing LM Light ($ARCH) to $INSTALL_DIR"
+# Database settings
+$DB_USER = if ($env:DB_USER) { $env:DB_USER } else { "lmlight" }
+$DB_PASSWORD = if ($env:DB_PASSWORD) { $env:DB_PASSWORD } else { "lmlight" }
+$DB_NAME = if ($env:DB_NAME) { $env:DB_NAME } else { "lmlight" }
 
-mkdir -p "$INSTALL_DIR"/{web,logs}
+Write-Host "Setting up LM Light database..." -ForegroundColor Blue
 
-[ -f "$INSTALL_DIR/stop.sh" ] && "$INSTALL_DIR/stop.sh" 2>/dev/null || true
+# Check psql
+if (-not (Get-Command psql -ErrorAction SilentlyContinue)) {
+    Write-Host "psql not found. Please install PostgreSQL first." -ForegroundColor Red
+    exit 1
+}
 
-curl -fSL "$BASE_URL/lmlight-api-linux-$ARCH" -o "$INSTALL_DIR/api"
-chmod +x "$INSTALL_DIR/api"
+# PostgreSQL service startup
+$pgService = Get-Service -Name "postgresql*" -ErrorAction SilentlyContinue | Select-Object -First 1
+if ($pgService -and $pgService.Status -ne "Running") {
+    Write-Host "Starting PostgreSQL service..."
+    Start-Service $pgService.Name
+    Start-Sleep -Seconds 3
+}
 
-curl -fSL "$BASE_URL/lmlight-web.tar.gz" -o "/tmp/lmlight-web.tar.gz"
-rm -rf "$INSTALL_DIR/web" && mkdir -p "$INSTALL_DIR/web"
-tar -xzf "/tmp/lmlight-web.tar.gz" -C "$INSTALL_DIR/web"
-rm -f /tmp/lmlight-web.tar.gz
+# Create user and database
+Write-Host "Creating user and database..."
+$env:PGPASSWORD = "postgres"
+psql -U postgres -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>$null
+psql -U postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>$null
+psql -U postgres -c "ALTER USER $DB_USER CREATEDB;" 2>$null
+psql -U postgres -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>$null
 
-[ ! -f "$INSTALL_DIR/.env" ] && cat > "$INSTALL_DIR/.env" << EOF
-# LM Light Configuration
+# Run migrations
+Write-Host "Creating tables..."
 
-# PostgreSQL
-DATABASE_URL=postgresql://lmlight:lmlight@localhost:5432/lmlight
-
-# Ollama
-OLLAMA_BASE_URL=http://localhost:11434
-
-# License (absolute path for Nuitka binary)
-LICENSE_FILE_PATH=$INSTALL_DIR/license.lic
-
-# NextAuth
-NEXTAUTH_SECRET=randomsecret123
-NEXTAUTH_URL=http://localhost:3000
-
-# API
-NEXT_PUBLIC_API_URL=http://localhost:8000
-API_PORT=8000
-
-# Web
-WEB_PORT=3000
-EOF
-
-# Database setup
-DB_USER="lmlight"
-DB_PASS="lmlight"
-DB_NAME="lmlight"
-
-echo "Setting up database..."
-if command -v psql &>/dev/null; then
-    # Create user and database
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';" 2>/dev/null || true
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || true
-    sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB;" 2>/dev/null || true
-    sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
-
-    # Run migrations
-    PGPASSWORD=$DB_PASS psql -U $DB_USER -d $DB_NAME -h localhost << 'SQLEOF'
+$SQL_MIGRATION = @"
 -- Enums
-DO $$ BEGIN CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'USER'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE "MessageRole" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM'); EXCEPTION WHEN duplicate_object THEN null; END $$;
-DO $$ BEGIN CREATE TYPE "ShareType" AS ENUM ('PRIVATE', 'TAG'); EXCEPTION WHEN duplicate_object THEN null; END $$;
+DO `$`$ BEGIN CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'USER'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
+DO `$`$ BEGIN CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
+DO `$`$ BEGIN CREATE TYPE "MessageRole" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
+DO `$`$ BEGIN CREATE TYPE "ShareType" AS ENUM ('PRIVATE', 'TAG'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
 
 -- Tables
 CREATE TABLE IF NOT EXISTS "User" (
@@ -148,12 +124,12 @@ CREATE TABLE IF NOT EXISTS "Message" (
 );
 
 -- Migrate existing Bot table (add new columns if missing)
-DO $$ BEGIN
+DO `$`$ BEGIN
     ALTER TABLE "Bot" ADD COLUMN IF NOT EXISTS "shareType" "ShareType" NOT NULL DEFAULT 'PRIVATE';
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_column THEN null; END $$;
-DO $$ BEGIN
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_column THEN null; END `$`$;
+DO `$`$ BEGIN
     ALTER TABLE "Bot" ADD COLUMN IF NOT EXISTS "shareTagId" TEXT;
-EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_column THEN null; END $$;
+EXCEPTION WHEN undefined_table THEN null; WHEN duplicate_column THEN null; END `$`$;
 
 -- pgvector schema
 CREATE SCHEMA IF NOT EXISTS pgvector;
@@ -188,63 +164,22 @@ VALUES (
     'admin-user-id',
     'admin@local',
     'Admin',
-    '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.V4ferGqaJe.rHe',
+    '`$2a`$12`$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/X4.V4ferGqaJe.rHe',
     'ADMIN',
     'ACTIVE',
     CURRENT_TIMESTAMP
 ) ON CONFLICT ("id") DO NOTHING;
 
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO lmlight;
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO lmlight;
-GRANT ALL PRIVILEGES ON SCHEMA pgvector TO lmlight;
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgvector TO lmlight;
-SQLEOF
-    echo "✅ Database setup complete"
-else
-    echo "⚠️  psql not found. Please set up database manually."
-fi
+-- Grant privileges
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO $DB_USER;
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO $DB_USER;
+GRANT ALL PRIVILEGES ON SCHEMA pgvector TO $DB_USER;
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgvector TO $DB_USER;
+"@
 
-cat > "$INSTALL_DIR/start.sh" << 'EOF'
-#!/bin/bash
-cd "$(dirname "$0")"
-set -a; [ -f .env ] && source .env; set +a
+$SQL_MIGRATION | psql -U postgres -d $DB_NAME 2>$null
 
-# Check dependencies
-command -v node &>/dev/null || { echo "❌ Node.js not found"; exit 1; }
-pg_isready -q 2>/dev/null || { echo "❌ PostgreSQL not running"; exit 1; }
-pgrep -x ollama >/dev/null || { ollama serve &>/dev/null & sleep 2; }
-
-# Stop existing
-pkill -f "lmlight.*api" 2>/dev/null; pkill -f "node.*server.js" 2>/dev/null; sleep 1
-
-echo "🚀 Starting LM Light..."
-
-# Start API
-./api &
-API_PID=$!
-
-# Start Web
-cd web && node server.js &
-WEB_PID=$!
-
-echo "✅ Started - API: http://localhost:${API_PORT:-8000} | Web: http://localhost:${WEB_PORT:-3000}"
-echo "   Press Ctrl+C to stop"
-
-trap "kill $API_PID $WEB_PID 2>/dev/null; echo 'Stopped'" EXIT
-wait
-EOF
-chmod +x "$INSTALL_DIR/start.sh"
-
-cat > "$INSTALL_DIR/stop.sh" << 'EOF'
-#!/bin/bash
-# Kill start.sh first (which will trigger its trap to kill API/Web)
-pkill -f "lmlight/start\.sh" 2>/dev/null
-sleep 1
-# Clean up any remaining processes
-pkill -f "\./api$" 2>/dev/null
-pkill -f "lmlight/web.*server\.js" 2>/dev/null
-echo "Stopped"
-EOF
-chmod +x "$INSTALL_DIR/stop.sh"
-
-echo "Done. Edit $INSTALL_DIR/.env then run: $INSTALL_DIR/start.sh"
+Write-Host "Database setup complete" -ForegroundColor Green
+Write-Host "  User: $DB_USER"
+Write-Host "  Database: $DB_NAME"
+Write-Host "  Admin login: admin@local / admin123"
