@@ -1,65 +1,28 @@
 #!/bin/bash
-# LM Light Installer for Linux
+# LM Light Database Setup for macOS/Linux
 set -e
 
-BASE_URL="${LMLIGHT_BASE_URL:-https://github.com/lmlight-app/dist_v2/releases/latest/download}"
-INSTALL_DIR="${LMLIGHT_INSTALL_DIR:-$HOME/.local/lmlight}"
-ARCH="$(uname -m)"
-case "$ARCH" in x86_64|amd64) ARCH="amd64" ;; aarch64|arm64) ARCH="arm64" ;; esac
+DB_USER="${DB_USER:-lmlight}"
+DB_PASS="${DB_PASS:-lmlight}"
+DB_NAME="${DB_NAME:-lmlight}"
 
-echo "Installing LM Light ($ARCH) to $INSTALL_DIR"
+echo "Setting up LM Light database..."
 
-mkdir -p "$INSTALL_DIR"/{web,logs}
+if ! command -v psql &>/dev/null; then
+    echo "❌ psql not found. Please install PostgreSQL first."
+    exit 1
+fi
 
-[ -f "$INSTALL_DIR/stop.sh" ] && "$INSTALL_DIR/stop.sh" 2>/dev/null || true
+# Create user and database
+echo "Creating user and database..."
+psql -U postgres -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';" 2>/dev/null || echo "User already exists"
+psql -U postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || echo "Database already exists"
+psql -U postgres -c "ALTER USER $DB_USER CREATEDB;" 2>/dev/null || true
+psql -U postgres -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || echo "pgvector extension already exists or not available"
 
-curl -fSL "$BASE_URL/lmlight-api-linux-$ARCH" -o "$INSTALL_DIR/api"
-chmod +x "$INSTALL_DIR/api"
-
-curl -fSL "$BASE_URL/lmlight-web.tar.gz" -o "/tmp/lmlight-web.tar.gz"
-rm -rf "$INSTALL_DIR/web" && mkdir -p "$INSTALL_DIR/web"
-tar -xzf "/tmp/lmlight-web.tar.gz" -C "$INSTALL_DIR/web"
-rm -f /tmp/lmlight-web.tar.gz
-
-[ ! -f "$INSTALL_DIR/.env" ] && cat > "$INSTALL_DIR/.env" << EOF
-# LM Light Configuration
-
-# PostgreSQL
-DATABASE_URL=postgresql://lmlight:lmlight@localhost:5432/lmlight
-
-# Ollama
-OLLAMA_BASE_URL=http://localhost:11434
-
-# License (absolute path for Nuitka binary)
-LICENSE_FILE_PATH=$INSTALL_DIR/license.lic
-
-# NextAuth
-NEXTAUTH_SECRET=randomsecret123
-NEXTAUTH_URL=http://localhost:3000
-
-# API
-NEXT_PUBLIC_API_URL=http://localhost:8000
-API_PORT=8000
-
-# Web
-WEB_PORT=3000
-EOF
-
-# Database setup
-DB_USER="lmlight"
-DB_PASS="lmlight"
-DB_NAME="lmlight"
-
-echo "Setting up database..."
-if command -v psql &>/dev/null; then
-    # Create user and database
-    sudo -u postgres psql -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASS';" 2>/dev/null || true
-    sudo -u postgres psql -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>/dev/null || true
-    sudo -u postgres psql -c "ALTER USER $DB_USER CREATEDB;" 2>/dev/null || true
-    sudo -u postgres psql -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
-
-    # Run migrations
-    PGPASSWORD=$DB_PASS psql -U $DB_USER -d $DB_NAME -h localhost << 'SQLEOF'
+# Run migrations
+echo "Creating tables..."
+psql -U $DB_USER -d $DB_NAME << 'SQLEOF'
 -- Enums
 DO $$ BEGIN CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'USER'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE'); EXCEPTION WHEN duplicate_object THEN null; END $$;
@@ -199,52 +162,8 @@ GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO lmlight;
 GRANT ALL PRIVILEGES ON SCHEMA pgvector TO lmlight;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgvector TO lmlight;
 SQLEOF
-    echo "✅ Database setup complete"
-else
-    echo "⚠️  psql not found. Please set up database manually."
-fi
 
-cat > "$INSTALL_DIR/start.sh" << 'EOF'
-#!/bin/bash
-cd "$(dirname "$0")"
-set -a; [ -f .env ] && source .env; set +a
-
-# Check dependencies
-command -v node &>/dev/null || { echo "❌ Node.js not found"; exit 1; }
-pg_isready -q 2>/dev/null || { echo "❌ PostgreSQL not running"; exit 1; }
-pgrep -x ollama >/dev/null || { ollama serve &>/dev/null & sleep 2; }
-
-# Stop existing
-pkill -f "lmlight.*api" 2>/dev/null; pkill -f "node.*server.js" 2>/dev/null; sleep 1
-
-echo "🚀 Starting LM Light..."
-
-# Start API
-./api &
-API_PID=$!
-
-# Start Web
-cd web && node server.js &
-WEB_PID=$!
-
-echo "✅ Started - API: http://localhost:${API_PORT:-8000} | Web: http://localhost:${WEB_PORT:-3000}"
-echo "   Press Ctrl+C to stop"
-
-trap "kill $API_PID $WEB_PID 2>/dev/null; echo 'Stopped'" EXIT
-wait
-EOF
-chmod +x "$INSTALL_DIR/start.sh"
-
-cat > "$INSTALL_DIR/stop.sh" << 'EOF'
-#!/bin/bash
-# Kill start.sh first (which will trigger its trap to kill API/Web)
-pkill -f "lmlight/start\.sh" 2>/dev/null
-sleep 1
-# Clean up any remaining processes
-pkill -f "\./api$" 2>/dev/null
-pkill -f "lmlight/web.*server\.js" 2>/dev/null
-echo "Stopped"
-EOF
-chmod +x "$INSTALL_DIR/stop.sh"
-
-echo "Done. Edit $INSTALL_DIR/.env then run: $INSTALL_DIR/start.sh"
+echo "✅ Database setup complete"
+echo "   User: $DB_USER"
+echo "   Database: $DB_NAME"
+echo "   Admin login: admin@local / admin123"
