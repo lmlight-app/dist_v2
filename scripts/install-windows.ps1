@@ -317,7 +317,7 @@ GRANT ALL PRIVILEGES ON SCHEMA pgvector TO $DB_USER;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgvector TO $DB_USER;
 "@
 
-    $SQL_MIGRATION | psql -U postgres -d $DB_NAME 2>$null
+    $SQL_MIGRATION | psql -q -U postgres -d $DB_NAME 2>$null
     Write-Success "データベースマイグレーションが完了しました"
 } else {
     Write-Warn "PostgreSQL がインストールされていないため、データベースセットアップをスキップしました"
