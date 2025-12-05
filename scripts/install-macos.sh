@@ -59,7 +59,7 @@ if command -v psql &>/dev/null; then
     psql -U postgres -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>/dev/null || true
 
     # Run migrations
-    psql -U $DB_USER -d $DB_NAME << 'SQLEOF'
+    psql -q -U $DB_USER -d $DB_NAME << 'SQLEOF'
 -- Enums
 DO $$ BEGIN CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'USER'); EXCEPTION WHEN duplicate_object THEN null; END $$;
 DO $$ BEGIN CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE'); EXCEPTION WHEN duplicate_object THEN null; END $$;
