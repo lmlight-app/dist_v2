@@ -575,8 +575,8 @@ $StopShortcut.Save()
 Write-Success "スタートメニューにショートカットを作成しました"
 Write-Host "  タスクバーにピン留め: スタートメニュー → LM Light → 右クリック → タスクバーにピン留め" -ForegroundColor Cyan
 
-Write-Host "起動: $INSTALL_DIR\start.ps1" -ForegroundColor Blue
-Write-Host "停止: $INSTALL_DIR\stop.ps1" -ForegroundColor Blue
+Write-Host "起動: powershell -ExecutionPolicy Bypass -File `"$INSTALL_DIR\start.ps1`"" -ForegroundColor Blue
+Write-Host "停止: powershell -ExecutionPolicy Bypass -File `"$INSTALL_DIR\stop.ps1`"" -ForegroundColor Blue
 Write-Host ""
 Write-Host "Web UI:   http://localhost:3000" -ForegroundColor Blue
 Write-Host "ログイン: admin@local / admin123" -ForegroundColor Blue
