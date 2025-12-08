@@ -97,11 +97,15 @@ function GetRandomString(Length: Integer): String;
 var
   I: Integer;
   Chars: String;
+  CharIndex: Integer;
 begin
   Chars := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   Result := '';
   for I := 1 to Length do
-    Result := Result + Chars[Random(Length(Chars)) + 1];
+  begin
+    CharIndex := Random(Length(Chars)) + 1;
+    Result := Result + Copy(Chars, CharIndex, 1);
+  end;
 end;
 
 function NextButtonClick(CurPageID: Integer): Boolean;
