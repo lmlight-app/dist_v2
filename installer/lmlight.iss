@@ -93,6 +93,17 @@ begin
     '');
 end;
 
+function GetRandomString(Length: Integer): String;
+const
+  Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+var
+  I: Integer;
+begin
+  Result := '';
+  for I := 1 to Length do
+    Result := Result + Chars[Random(Length(Chars)) + 1];
+end;
+
 function NextButtonClick(CurPageID: Integer): Boolean;
 begin
   Result := True;
@@ -152,15 +163,4 @@ begin
       SaveStringToFile(EnvFile, EnvContent, False);
     end;
   end;
-end;
-
-function GetRandomString(Length: Integer): String;
-const
-  Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
-var
-  I: Integer;
-begin
-  Result := '';
-  for I := 1 to Length do
-    Result := Result + Chars[Random(Length(Chars)) + 1];
 end;
