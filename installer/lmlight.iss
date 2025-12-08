@@ -93,17 +93,19 @@ begin
     '');
 end;
 
-function GetRandomString(Length: Integer): String;
+function GetRandomString(Len: Integer): String;
 var
   I: Integer;
   Chars: String;
   CharIndex: Integer;
+  CharsLen: Integer;
 begin
   Chars := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+  CharsLen := Length(Chars);
   Result := '';
-  for I := 1 to Length do
+  for I := 1 to Len do
   begin
-    CharIndex := Random(Length(Chars)) + 1;
+    CharIndex := Random(CharsLen) + 1;
     Result := Result + Copy(Chars, CharIndex, 1);
   end;
 end;
