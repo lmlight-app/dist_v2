@@ -39,8 +39,8 @@ jobs:
             gh release download $latestRelease.tagName -p "lmlight-web.tar.gz" -D releases
 
             # Extract frontend
-            tar -xzf releases/lmlight-web.tar.gz -C releases
-            Rename-Item -Path "releases/lmlight-web-*" -NewName "frontend"
+            New-Item -ItemType Directory -Force -Path releases/frontend
+            tar -xzf releases/lmlight-web.tar.gz -C releases/frontend
           } else {
             Write-Error "Frontend archive not found in latest release"
             exit 1
