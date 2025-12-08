@@ -94,11 +94,11 @@ begin
 end;
 
 function GetRandomString(Length: Integer): String;
-const
-  Chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
 var
   I: Integer;
+  Chars: String;
 begin
+  Chars := 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
   Result := '';
   for I := 1 to Length do
     Result := Result + Chars[Random(Length(Chars)) + 1];
