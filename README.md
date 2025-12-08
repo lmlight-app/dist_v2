@@ -158,13 +158,22 @@ ollama pull nomic-embed-text    # RAG用埋め込みモデル (推奨)
 
 ## アンインストール
 
+**macOS:**
 ```bash
-rm -rf ~/.local/lmlight  # macOS/Linux
-rm -rf "/Applications/LM Light.app"  # macOS
+rm -rf ~/.local/lmlight
+rm -rf "/Applications/LM Light.app"
 ```
 
+**Linux:**
+```bash
+rm -rf ~/.local/lmlight
+```
+
+**Windows:**
+- EXEインストーラー版: 設定 → アプリ → インストールされているアプリ → LM Light → アンインストール
+- PowerShellスクリプト版:
 ```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\lmlight"  # Windows
+Remove-Item -Recurse -Force "$env:LOCALAPPDATA\lmlight"
 ```
 
 ## ディレクトリ構造
