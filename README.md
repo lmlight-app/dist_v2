@@ -2,22 +2,34 @@
 
 ## インストール
 
-**macOS:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-macos.sh | bash
-```
+### Windows
 
-**Linux:**
-```bash
-curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-linux.sh | bash
-```
+**EXEインストーラー (推奨):**
+1. [最新リリース](https://github.com/lmlight-app/dist_v2/releases/latest)から `LMLight-Setup-X.X.X.exe` をダウンロード
+2. ダブルクリックしてインストール
 
-**Windows:**
+**PowerShellスクリプト:**
 ```powershell
 irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-windows.ps1 | iex
 ```
 
-インストール先: `~/.local/lmlight` (Windows: `%LOCALAPPDATA%\lmlight`)
+### macOS
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-macos.sh | bash
+```
+
+### Linux
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-linux.sh | bash
+```
+
+---
+
+インストール先:
+- macOS/Linux: `~/.local/lmlight`
+- Windows: `%LOCALAPPDATA%\lmlight`
 
 **Docker:**
 ```bash
@@ -42,9 +54,10 @@ docker run -d --name lmlight-web -p 3000:3000 --env-file .env lmlight-web
 | 依存関係 | macOS | Linux (Ubuntu/Debian) | Windows |
 |---------|-------|----------------------|---------|
 | Node.js 18+ | `brew install node` | `sudo apt install nodejs npm` | `winget install OpenJS.NodeJS.LTS` |
-| PostgreSQL 16+ | `brew install postgresql@16` | `sudo apt install postgresql` | `winget install PostgreSQL.PostgreSQL.17` |
+| PostgreSQL 16+ | `brew install postgresql@16` | `sudo apt install postgresql` | `winget install PostgreSQL.PostgreSQL` |
 | pgvector | `brew install pgvector` | `sudo apt install postgresql-16-pgvector` | [手動インストール](https://github.com/pgvector/pgvector#windows) |
 | Ollama | `brew install ollama` | `curl -fsSL https://ollama.com/install.sh \| sh` | `winget install Ollama.Ollama` |
+| Tesseract OCR | `brew install tesseract` | `sudo apt install tesseract-ocr` | [UB-Mannheim版](https://github.com/UB-Mannheim/tesseract/wiki) |
 
 ### サービス起動
 
