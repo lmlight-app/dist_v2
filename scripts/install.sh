@@ -77,13 +77,6 @@ lsof -ti:${WEB_PORT:-3000} 2>/dev/null | xargs kill -9 2>/dev/null || true
 
 mkdir -p logs
 
-# Run Prisma migrations (first run or updates)
-if [ -f web/node_modules/.prisma/client/schema.prisma ]; then
-    cd web
-    npx prisma db push --skip-generate 2>/dev/null || true
-    cd ..
-fi
-
 # Start API
 ROOT="$(pwd)"
 nohup ./api > logs/api.log 2>&1 & echo $! > logs/api.pid

@@ -59,34 +59,27 @@ docker run -d --name lmlight-web -p 3000:3000 --env-file .env lmlight-web
 | Ollama | `brew install ollama` | `curl -fsSL https://ollama.com/install.sh \| sh` | `winget install Ollama.Ollama` |
 | Tesseract OCR | `brew install tesseract` | `sudo apt install tesseract-ocr` | [UB-Mannheim版](https://github.com/UB-Mannheim/tesseract/wiki) |
 
-### サービス起動
-
-PostgreSQL と Ollama は `start.sh` / `stop.sh` で自動的に起動・停止されます。
-
-※ データベース・ユーザー・テーブル作成はインストーラーが自動実行します
-
-### 手動DBセットアップ
+### データベース
 
 インストーラーがDB作成・テーブル作成・初期ユーザー作成を自動実行します。
-問題が発生した場合は以下を実行:
 
-**macOS/Linux:**
+問題が発生した場合のみ手動実行:
+
 ```bash
+# macOS/Linux
 curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/db_setup.sh | bash
-```
 
-**Windows:**
-```powershell
+# Windows
 irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/db_setup.ps1 | iex
 ```
 
 **DBリセット (⚠️ 全データ削除):**
 ```bash
 psql -U postgres -c "DROP DATABASE lmlight;"
-# その後、上記のdb_setupを再実行 (adminユーザーのみ再作成)
+# その後、上記のdb_setupを再実行
 ```
 
-※ 通常のアップデート（インストーラー再実行）では既存ユーザー・データは保持されます
+※ アップデート時も既存データは保持されます
 
 ### Ollamaモデル
 
