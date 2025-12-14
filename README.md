@@ -2,17 +2,6 @@
 
 ## インストール
 
-### Windows
-
-**EXEインストーラー (推奨):**
-1. [最新リリース](https://github.com/lmlight-app/dist_v2/releases/latest)から `LMLight-Setup-X.X.X.exe` をダウンロード
-2. ダブルクリックしてインストール
-
-**PowerShellスクリプト:**
-```powershell
-irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-windows.ps1 | iex
-```
-
 ### macOS
 
 ```bash
@@ -23,6 +12,17 @@ curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/in
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-linux.sh | bash
+```
+
+### Windows
+
+**EXEインストーラー (推奨):**
+1. [最新リリース](https://github.com/lmlight-app/dist_v2/releases/latest)から `LMLight-Setup-X.X.X.exe` をダウンロード
+2. ダブルクリックしてインストール
+
+**PowerShellスクリプト:**
+```powershell
+irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-windows.ps1 | iex
 ```
 
 ---
@@ -68,7 +68,9 @@ docker run -d --name lmlight-web -p 3000:3000 --env-file .env lmlight-web
 ```bash
 # macOS/Linux
 curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/db_setup.sh | bash
+```
 
+```powershell
 # Windows
 irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/db_setup.ps1 | iex
 ```
