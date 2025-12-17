@@ -1,0 +1,31 @@
+#!/bin/bash
+# LM Light Launcher for Linux/WSL
+
+INSTALL_DIR="$HOME/.local/lmlight"
+cd "$INSTALL_DIR" 2>/dev/null || { echo "❌ LM Light not installed. Run installer first."; exit 1; }
+
+set -a; [ -f .env ] && source .env; set +a
+
+# Toggle: running → stop, not running → start
+if curl -s "http://localhost:${API_PORT:-8000}/health" >/dev/null 2>&1; then
+    echo "🛑 Stopping LM Light..."
+    "$INSTALL_DIR/stop.sh"
+    echo "✅ Stopped"
+else
+    echo "🚀 Starting LM Light..."
+    "$INSTALL_DIR/start.sh" &
+
+    # Wait for API
+    for i in {1..30}; do
+        if curl -s "http://localhost:${API_PORT:-8000}/health" >/dev/null 2>&1; then
+            echo "✅ Running at http://localhost:${WEB_PORT:-3000}"
+            # Open browser (works on most Linux)
+            xdg-open "http://localhost:${WEB_PORT:-3000}" 2>/dev/null || \
+            sensible-browser "http://localhost:${WEB_PORT:-3000}" 2>/dev/null || \
+            echo "Open http://localhost:${WEB_PORT:-3000} in your browser"
+            exit 0
+        fi
+        sleep 1
+    done
+    echo "❌ Failed to start"
+fi
