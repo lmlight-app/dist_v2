@@ -15,12 +15,7 @@ curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/in
 ```
 
 ### Windows
-
-**EXEインストーラー (推奨):**
-1. [最新リリース](https://github.com/lmlight-app/dist_v2/releases/latest)から `LMLight-Setup-X.X.X.exe` をダウンロード
-2. ダブルクリックしてインストール
-
-**PowerShellスクリプト:**
+**PowerShellスクリプト(β版):**
 ```powershell
 irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-windows.ps1 | iex
 ```
@@ -29,7 +24,7 @@ irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-w
 
 インストール先:
 - macOS/Linux: `~/.local/lmlight`
-- Windows: `%LOCALAPPDATA%\lmlight`
+- Windows: `%APPDATA%\lmlight`
 
 **Docker:**
 ```bash
