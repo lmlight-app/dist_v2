@@ -24,7 +24,7 @@ irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-w
 
 インストール先:
 - macOS/Linux: `~/.local/lmlight`
-- Windows: `%APPDATA%\lmlight`
+- Windows: ` ~\AppData\Local\lmlight`
 
 **Docker:**
 ```bash
@@ -89,7 +89,9 @@ ollama pull nomic-embed-text    # RAG用埋め込みモデル (推奨)
 
 ### 設定ファイル (.env)
 
-インストール後、`~/.local/lmlight/.env` を編集:
+インストール後、`.env` を編集:
+- macOS/Linux: `~/.local/lmlight`
+- Windows: ` ~\AppData\Local\lmlight`
 
 | 環境変数 | 説明 | デフォルト |
 |---------|------|-----------|
@@ -106,7 +108,9 @@ ollama pull nomic-embed-text    # RAG用埋め込みモデル (推奨)
 
 ### ライセンス
 
-`license.lic` を `~/.local/lmlight/` に配置
+`license.lic` を下記に配置
+- macOS/Linux: `~/.local/lmlight`
+- Windows: ` ~\AppData\Local\lmlight`
 
 ## 起動・停止
 
@@ -160,10 +164,9 @@ rm -rf ~/.local/lmlight
 ```
 
 **Windows:**
-- EXEインストーラー版: 設定 → アプリ → インストールされているアプリ → LM Light → アンインストール
 - PowerShellスクリプト版:
 ```powershell
-Remove-Item -Recurse -Force "$env:LOCALAPPDATA\lmlight"
+Remove-Item -Recurse -Force "$env:\AppData\Local\lmlight"
 ```
 
 ## ディレクトリ構造
