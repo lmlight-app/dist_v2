@@ -1,4 +1,4 @@
-# LM Light インストーラー for Windows
+﻿# LM Light インストーラー for Windows
 # 使い方: irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-windows.ps1 | iex
 
 $ErrorActionPreference = "Stop"
@@ -35,19 +35,17 @@ if (-not $isAdmin) {
 }
 
 # ディレクトリ作成
-New-Item -ItemType Directory -Force -Path "$INSTALL_DIR\bin" | Out-Null
+New-Item -ItemType Directory -Force -Path "$INSTALL_DIR" | Out-Null
 New-Item -ItemType Directory -Force -Path "$INSTALL_DIR\web" | Out-Null
-New-Item -ItemType Directory -Force -Path "$INSTALL_DIR\data" | Out-Null
 New-Item -ItemType Directory -Force -Path "$INSTALL_DIR\logs" | Out-Null
-New-Item -ItemType Directory -Force -Path "$INSTALL_DIR\scripts" | Out-Null
 
 # 既存インストールチェック
-if (Test-Path "$INSTALL_DIR\bin\lmlight-api.exe") {
+if (Test-Path "$INSTALL_DIR\api.exe") {
     Write-Info "既存のインストールを検出しました。アップデート中..."
 
     # 既存プロセス停止
     Write-Info "既存のプロセスを停止中..."
-    Get-Process -Name "lmlight-api" -ErrorAction SilentlyContinue | Stop-Process -Force
+    Get-Process -Name "api" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*lmlight*" } | Stop-Process -Force
     Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*lmlight*" } | Stop-Process -Force
     Start-Sleep -Seconds 1
     Write-Success "既存のプロセスを停止しました"
@@ -60,7 +58,7 @@ Write-Info "ステップ 1/5: バイナリをダウンロード中..."
 
 Write-Info "バックエンドをダウンロード中..."
 $BACKEND_FILE = "lmlight-api-windows-$ARCH.exe"
-Invoke-WebRequest -Uri "$BASE_URL/$BACKEND_FILE" -OutFile "$INSTALL_DIR\bin\lmlight-api.exe" -UseBasicParsing
+Invoke-WebRequest -Uri "$BASE_URL/$BACKEND_FILE" -OutFile "$INSTALL_DIR\api.exe" -UseBasicParsing
 Write-Success "バックエンドをダウンロードしました"
 
 Write-Info "フロントエンドをダウンロード中..."
@@ -70,7 +68,7 @@ Invoke-WebRequest -Uri "$BASE_URL/lmlight-web.tar.gz" -OutFile $TEMP_TAR -UseBas
 # tar展開（Windows 10 1803+）
 $WORK_DIR = "$env:TEMP\lmlight-web-$PID"
 New-Item -ItemType Directory -Force -Path $WORK_DIR | Out-Null
-tar -xzf $TEMP_TAR -C $WORK_DIR
+& "$env:SystemRoot\System32\tar.exe" -xzf $TEMP_TAR -C $WORK_DIR
 if ($LASTEXITCODE -ne 0) {
     Write-Error "tar展開に失敗しました (code: $LASTEXITCODE)"
 }
@@ -144,7 +142,7 @@ if ($MISSING_DEPS.Count -gt 0 -and $isAdmin) {
                 }
                 "tesseract" {
                     Write-Info "Tesseract OCR をインストール中..."
-                    Write-Warn "Tesseract は手動インストールが必要です: https://github.com/UB-Mannheim/tesseract/wiki"
+                    winget install -e --id UB-Mannheim.TesseractOCR --silent --accept-package-agreements --accept-source-agreements
                 }
             }
         }
@@ -156,6 +154,9 @@ if ($MISSING_DEPS.Count -gt 0 -and $isAdmin) {
 # ============================================================
 Write-Info "ステップ 3/5: PostgreSQL をセットアップ中..."
 
+# PostgreSQL ポート検出
+$DB_PORT = "5432"
+
 if (Get-Command psql -ErrorAction SilentlyContinue) {
     Write-Info "データベースを作成中..."
 
@@ -166,14 +167,28 @@ if (Get-Command psql -ErrorAction SilentlyContinue) {
         Start-Sleep -Seconds 3
     }
 
-    # データベースとユーザー作成
+    # ポート検出: 5432 → 5433 の順で試行
     $env:PGPASSWORD = "postgres"
-    psql -U postgres -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>$null
-    psql -U postgres -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>$null
-    psql -U postgres -c "ALTER USER $DB_USER CREATEDB;" 2>$null
+    $ErrorActionPreference = "Continue"
+    $null = psql -U postgres -p 5432 -c "SELECT 1" 2>$null
+    if ($LASTEXITCODE -ne 0) {
+        $null = psql -U postgres -p 5433 -c "SELECT 1" 2>$null
+        if ($LASTEXITCODE -eq 0) {
+            $DB_PORT = "5433"
+            Write-Info "PostgreSQL ポート: 5433"
+        }
+    } else {
+        Write-Info "PostgreSQL ポート: 5432"
+    }
+    # データベースとユーザー作成 (エラーは無視)
+    $null = psql -U postgres -p $DB_PORT -c "CREATE USER $DB_USER WITH PASSWORD '$DB_PASSWORD';" 2>$null
+    $null = psql -U postgres -p $DB_PORT -c "CREATE DATABASE $DB_NAME OWNER $DB_USER;" 2>$null
+    $null = psql -U postgres -p $DB_PORT -c "ALTER USER $DB_USER CREATEDB;" 2>$null
 
     # pgvector拡張
-    psql -U postgres -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>$null
+    $null = psql -U postgres -p $DB_PORT -d $DB_NAME -c "CREATE EXTENSION IF NOT EXISTS vector;" 2>$null
+
+    $ErrorActionPreference = "Stop"
 
     # マイグレーション実行
     Write-Info "データベースマイグレーションを実行中..."
@@ -203,6 +218,7 @@ CREATE TABLE IF NOT EXISTS "User" (
 CREATE TABLE IF NOT EXISTS "UserSettings" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL UNIQUE,
+    "defaultModel" TEXT,
     "historyLimit" INTEGER NOT NULL DEFAULT 2,
     "temperature" DOUBLE PRECISION NOT NULL DEFAULT 0.7,
     "maxTokens" INTEGER NOT NULL DEFAULT 2048,
@@ -312,7 +328,9 @@ GRANT ALL PRIVILEGES ON SCHEMA pgvector TO $DB_USER;
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA pgvector TO $DB_USER;
 "@
 
-    $SQL_MIGRATION | psql -q -U postgres -d $DB_NAME 2>$null
+    $ErrorActionPreference = "Continue"
+    $null = $SQL_MIGRATION | psql -q -U postgres -p $DB_PORT -d $DB_NAME 2>$null
+    $ErrorActionPreference = "Stop"
     Write-Success "データベースマイグレーションが完了しました"
 } else {
     Write-Warn "PostgreSQL がインストールされていないため、データベースセットアップをスキップしました"
@@ -355,34 +373,45 @@ Write-Info "ステップ 5/5: 設定を作成中..."
 # .env ファイル作成
 $NEXTAUTH_SECRET = -join ((65..90) + (97..122) + (48..57) | Get-Random -Count 32 | ForEach-Object {[char]$_})
 $ENV_CONTENT = @"
-DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:5432/${DB_NAME}
+DATABASE_URL=postgresql://${DB_USER}:${DB_PASSWORD}@localhost:${DB_PORT}/${DB_NAME}
 OLLAMA_BASE_URL=http://localhost:11434
 LICENSE_FILE_PATH=$INSTALL_DIR\license.lic
 NEXTAUTH_SECRET=$NEXTAUTH_SECRET
 NEXTAUTH_URL=http://localhost:3000
+AUTH_SECRET=$NEXTAUTH_SECRET
+AUTH_URL=http://localhost:3000
 NEXT_PUBLIC_API_URL=http://localhost:8000
+API_PORT=8000
+WEB_PORT=3000
 "@
 
 Set-Content -Path "$INSTALL_DIR\.env" -Value $ENV_CONTENT -Encoding UTF8
 Write-Success ".env ファイルを作成しました"
 
-# 起動スクリプト作成
+# 起動スクリプト作成（ルートに直接作成）
 $START_SCRIPT = @'
 # LM Light 起動スクリプト
-$PROJECT_ROOT = Split-Path -Parent $PSScriptRoot
-if (Test-Path "$PROJECT_ROOT\scripts") {
-    $PROJECT_ROOT = $PROJECT_ROOT
-} else {
-    $PROJECT_ROOT = Split-Path -Parent $PROJECT_ROOT
-}
+$INSTALL_DIR = "$env:LOCALAPPDATA\lmlight"
+Set-Location $INSTALL_DIR
 
 # .env 読み込み
-if (Test-Path "$PROJECT_ROOT\.env") {
-    Get-Content "$PROJECT_ROOT\.env" | ForEach-Object {
-        if ($_ -match "^([^=]+)=(.*)$") {
-            [System.Environment]::SetEnvironmentVariable($matches[1], $matches[2])
+if (Test-Path "$INSTALL_DIR\.env") {
+    Get-Content "$INSTALL_DIR\.env" | ForEach-Object {
+        if ($_ -match "^([^#][^=]+)=(.*)$") {
+            [System.Environment]::SetEnvironmentVariable($matches[1].Trim(), $matches[2].Trim())
         }
     }
+}
+
+# Auth.js v5 対応
+$env:AUTH_SECRET = $env:NEXTAUTH_SECRET
+$env:AUTH_URL = $env:NEXTAUTH_URL
+$env:AUTH_TRUST_HOST = "true"
+
+# Tesseract OCR (画像OCR用)
+if (Test-Path "C:\Program Files\Tesseract-OCR\tesseract.exe") {
+    $env:PATH = "C:\Program Files\Tesseract-OCR;$env:PATH"
+    $env:TESSDATA_PREFIX = "C:\Program Files\Tesseract-OCR\tessdata"
 }
 
 Write-Host "LM Light を起動中..." -ForegroundColor Blue
@@ -403,20 +432,20 @@ if (-not (Get-Process -Name "ollama" -ErrorAction SilentlyContinue)) {
 }
 
 # 既存プロセス終了
-Get-Process -Name "lmlight-api" -ErrorAction SilentlyContinue | Stop-Process -Force
-Get-NetTCPConnection -LocalPort 3000, 8000 -ErrorAction SilentlyContinue | ForEach-Object {
-    Stop-Process -Id $_.OwningProcess -Force -ErrorAction SilentlyContinue
-}
+Get-Process -Name "api" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*lmlight*" } | Stop-Process -Force
+Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*lmlight*" } | Stop-Process -Force
 Start-Sleep -Seconds 1
 
 # API 起動
 Write-Host "API を起動中..."
-Start-Process -FilePath "$PROJECT_ROOT\bin\lmlight-api.exe" -WorkingDirectory $PROJECT_ROOT -WindowStyle Hidden -RedirectStandardOutput "$PROJECT_ROOT\logs\api.log" -RedirectStandardError "$PROJECT_ROOT\logs\api.err"
+Start-Process -FilePath "$INSTALL_DIR\api.exe" -WorkingDirectory $INSTALL_DIR -WindowStyle Hidden
 Start-Sleep -Seconds 3
 
 # Web 起動
+$env:PORT = "3000"
+$env:HOSTNAME = "0.0.0.0"
 Write-Host "Web を起動中..."
-Start-Process -FilePath "node" -ArgumentList "server.js" -WorkingDirectory "$PROJECT_ROOT\web" -WindowStyle Hidden -RedirectStandardOutput "$PROJECT_ROOT\logs\web.log" -RedirectStandardError "$PROJECT_ROOT\logs\web.err"
+Start-Process -FilePath "node" -ArgumentList "server.js" -WorkingDirectory "$INSTALL_DIR\web" -WindowStyle Hidden
 Start-Sleep -Seconds 3
 
 Write-Host ""
@@ -432,23 +461,20 @@ Write-Host ""
 Start-Process "http://localhost:3000"
 '@
 
-Set-Content -Path "$INSTALL_DIR\scripts\start.ps1" -Value $START_SCRIPT -Encoding UTF8
+Set-Content -Path "$INSTALL_DIR\start.ps1" -Value $START_SCRIPT -Encoding UTF8
 
 # 停止スクリプト作成
 $STOP_SCRIPT = @'
+# LM Light 停止スクリプト
 Write-Host "LM Light を停止中..."
 
-Get-Process -Name "lmlight-api" -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process -Name "api" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*lmlight*" } | Stop-Process -Force
 Get-Process -Name "node" -ErrorAction SilentlyContinue | Where-Object { $_.Path -like "*lmlight*" } | Stop-Process -Force
 
 Write-Host "LM Light を停止しました" -ForegroundColor Green
 '@
 
-Set-Content -Path "$INSTALL_DIR\scripts\stop.ps1" -Value $STOP_SCRIPT -Encoding UTF8
-
-# シンボリックリンク的な起動ファイル
-Copy-Item "$INSTALL_DIR\scripts\start.ps1" "$INSTALL_DIR\start.ps1"
-Copy-Item "$INSTALL_DIR\scripts\stop.ps1" "$INSTALL_DIR\stop.ps1"
+Set-Content -Path "$INSTALL_DIR\stop.ps1" -Value $STOP_SCRIPT -Encoding UTF8
 
 # トグルスクリプト作成（macOSと同様の動作）
 $TOGGLE_SCRIPT = @'
@@ -518,8 +544,7 @@ if ($isRunning) {
 }
 '@
 
-Set-Content -Path "$INSTALL_DIR\scripts\toggle.ps1" -Value $TOGGLE_SCRIPT -Encoding UTF8
-Copy-Item "$INSTALL_DIR\scripts\toggle.ps1" "$INSTALL_DIR\toggle.ps1"
+Set-Content -Path "$INSTALL_DIR\toggle.ps1" -Value $TOGGLE_SCRIPT -Encoding UTF8
 
 Write-Host ""
 Write-Host "╔═══════════════════════════════════════════════════════╗" -ForegroundColor Green
@@ -534,7 +559,7 @@ if ($MISSING_DEPS.Count -gt 0) {
     if ($MISSING_DEPS -contains "nodejs") { Write-Host "    winget install OpenJS.NodeJS.LTS" }
     if ($MISSING_DEPS -contains "postgresql") { Write-Host "    winget install PostgreSQL.PostgreSQL" }
     if ($MISSING_DEPS -contains "ollama") { Write-Host "    winget install Ollama.Ollama" }
-    if ($MISSING_DEPS -contains "tesseract") { Write-Host "    Tesseract: https://github.com/UB-Mannheim/tesseract/wiki  # オプション: 画像OCR用" }
+    if ($MISSING_DEPS -contains "tesseract") { Write-Host "    winget install UB-Mannheim.TesseractOCR  # オプション: 画像OCR用" }
     Write-Host ""
 }
 
