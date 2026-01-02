@@ -141,11 +141,14 @@ if ($MISSING_DEPS.Count -gt 0 -and $isAdmin) {
                 }
                 "ollama" {
                     Write-Info "Ollama をインストール中..."
-                    winget install -e --id Ollama.Ollama --silent --accept-package-agreements --accept-source-agreements
+                    $null = winget install -e --id Ollama.Ollama --silent --accept-package-agreements --accept-source-agreements 2>&1
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Success "Ollama をインストールしました"
+                    }
                 }
                 "tesseract" {
                     Write-Info "Tesseract OCR をインストール中..."
-                    winget install -e --id UB-Mannheim.TesseractOCR --silent --accept-package-agreements --accept-source-agreements
+                    Write-Warn "Tesseract は手動インストールが必要です: https://github.com/UB-Mannheim/tesseract/wiki"
                 }
             }
         }
@@ -198,7 +201,7 @@ if (Get-Command psql -ErrorAction SilentlyContinue) {
 
     $SQL_MIGRATION = @"
 -- 列挙型
-DO `$`$ BEGIN CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'USER'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
+DO `$`$ BEGIN CREATE TYPE "UserRole" AS ENUM ('ADMIN', 'SUPER', 'USER'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
 DO `$`$ BEGIN CREATE TYPE "UserStatus" AS ENUM ('ACTIVE', 'INACTIVE'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
 DO `$`$ BEGIN CREATE TYPE "MessageRole" AS ENUM ('USER', 'ASSISTANT', 'SYSTEM'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
 DO `$`$ BEGIN CREATE TYPE "ShareType" AS ENUM ('PRIVATE', 'TAG'); EXCEPTION WHEN duplicate_object THEN null; END `$`$;
