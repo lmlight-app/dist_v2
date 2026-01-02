@@ -232,9 +232,14 @@ CREATE TABLE IF NOT EXISTS "UserSettings" (
     "reasoningMode" TEXT NOT NULL DEFAULT 'normal',
     "ragTopK" INTEGER NOT NULL DEFAULT 5,
     "ragMinSimilarity" DOUBLE PRECISION NOT NULL DEFAULT 0.45,
-    "embeddingModel" TEXT NOT NULL DEFAULT 'nomic-embed-text:latest',
+    "embeddingModel" TEXT NOT NULL DEFAULT 'embeddinggemma:latest',
     "chunkSize" INTEGER NOT NULL DEFAULT 600,
     "chunkOverlap" INTEGER NOT NULL DEFAULT 100,
+    "chatRagTopK" INTEGER NOT NULL DEFAULT 5,
+    "chatRagMinSimilarity" DOUBLE PRECISION NOT NULL DEFAULT 0.45,
+    "chatEmbeddingModel" TEXT NOT NULL DEFAULT 'embeddinggemma:latest',
+    "chatChunkSize" INTEGER NOT NULL DEFAULT 500,
+    "chatChunkOverlap" INTEGER NOT NULL DEFAULT 100,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
