@@ -58,7 +58,7 @@ docker run -d --name lmlight-web -p 3000:3000 --env-file .env lmlight-web
 
 インストーラーがDB作成・テーブル作成・初期ユーザー作成を自動実行します。
 
-問題が発生した場合のみ手動実行:
+データベースのみ実行:
 
 ```bash
 # macOS/Linux
@@ -70,7 +70,7 @@ curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/db
 irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/db_setup.ps1 | iex
 ```
 
-**DBリセット (⚠️ 全データ削除):**
+**データベース削除:**
 ```bash
 psql -U postgres -c "DROP DATABASE lmlight;"
 # その後、上記のdb_setupを再実行
