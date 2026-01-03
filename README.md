@@ -52,6 +52,7 @@ docker run -d --name lmlight-web -p 3000:3000 --env-file .env lmlight-web
 | PostgreSQL 16+ | `brew install postgresql@16` | `sudo apt install postgresql` | `winget install PostgreSQL.PostgreSQL` |
 | pgvector | `brew install pgvector` | `sudo apt install postgresql-16-pgvector` | [手動インストール](https://github.com/pgvector/pgvector#windows) |
 | Ollama | `brew install ollama` | `curl -fsSL https://ollama.com/install.sh \| sh` | `winget install Ollama.Ollama` |
+| FFmpeg (文字起こし用) | `brew install ffmpeg` | `sudo apt install ffmpeg` | `winget install Gyan.FFmpeg` |
 | Tesseract OCR (任意) | `brew install tesseract` | `sudo apt install tesseract-ocr` | `winget install UB-Mannheim.TesseractOCR` |
 
 ### データベース
@@ -103,8 +104,63 @@ ollama pull nomic-embed-text    # RAG用埋め込みモデル (推奨)
 | `NEXT_PUBLIC_API_URL` | APIサーバーURL | `http://localhost:8000` |
 | `API_PORT` | APIポート | `8000` |
 | `WEB_PORT` | Webポート | `3000` |
+| `WHISPER_MODEL` | 文字起こしモデル (tiny/base/small/medium/large) | `tiny` |
 
 ※ インストーラーが自動設定します。手動変更が必要な場合のみ編集してください。
+
+### 文字起こし機能 (オプション)
+
+音声ファイルをテキストに変換する機能です。モデルは別途インストールが必要です。
+
+#### モデル比較表
+
+| モデル | サイズ | 30分音声の処理時間 (CPU) | 30分音声の処理時間 (RTX 5060) | 精度 | 想定用途 |
+|--------|--------|--------------------------|-------------------------------|------|----------|
+| tiny | 74MB | 約3分 | 約30秒 | ★★☆☆☆ | 高速プレビュー、メモ程度 |
+| base | 142MB | 約5分 | 約45秒 | ★★★☆☆ | 日常会話、簡易議事録 |
+| small | 466MB | 約15分 | 約1.5分 | ★★★★☆ | ビジネス文書、インタビュー |
+| medium | 1.5GB | 約40分 | 約3分 | ★★★★☆ | 専門用語含む録音 |
+| large | 2.9GB | 約90分 | 約5分 | ★★★★★ | 高精度が必須の文書化 |
+
+※ 処理時間は目安です。実際の時間はCPU/GPU性能、音声品質により変動します。
+※ GPU未使用時はCPUのみで処理されます。
+
+#### モデルのインストール
+
+**macOS / Linux:**
+
+```bash
+# デフォルト (tiny)
+curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.sh | bash
+
+# モデル指定
+curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.sh | bash -s -- tiny
+curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.sh | bash -s -- base
+curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.sh | bash -s -- small
+curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.sh | bash -s -- medium
+curl -fsSL https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.sh | bash -s -- large
+```
+
+**Windows:**
+
+```powershell
+# デフォルト (tiny)
+irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.ps1 | iex
+
+# モデル指定
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.ps1))) -ModelName tiny
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.ps1))) -ModelName base
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.ps1))) -ModelName small
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.ps1))) -ModelName medium
+& ([scriptblock]::Create((irm https://raw.githubusercontent.com/lmlight-app/dist_v2/main/scripts/install-transcribe.ps1))) -ModelName large
+```
+
+インストール後、LM Lightを再起動するとサイドバーに「文字起こし」が表示されます。
+
+- 対応形式: WAV, MP3, M4A, WebM, OGG, FLAC, AAC
+- 最大ファイルサイズ: 100MB
+- 対応言語: 日本語, English
+- GPU対応: Metal (macOS), CUDA (Linux/Windows)
 
 ### ライセンス
 
@@ -165,11 +221,12 @@ Remove-Item -Recurse -Force "$env:LOCALAPPDATA\lmlight"
 
 ```
 ~/.local/lmlight/
-├── api             # APIバイナリ
-├── web/            # Webフロントエンド
-├── .env            # 設定ファイル
-├── license.lic     # ライセンス
-├── start.sh        # 起動
-├── stop.sh         # 停止
-└── logs/           # ログ
+├── api                    # APIバイナリ
+├── web/                   # Webフロントエンド
+├── models/whisper/        # 文字起こしモデル (オプション)
+├── .env                   # 設定ファイル
+├── license.lic            # ライセンス
+├── start.sh               # 起動
+├── stop.sh                # 停止
+└── logs/                  # ログ
 ```
